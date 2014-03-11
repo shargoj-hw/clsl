@@ -227,7 +227,7 @@ function_call := function_call_or_method
 function_call_or_method := function_call_generic
 function_call_generic := function_call_header_with_parameters RIGHT_PAREN | function_call_header_no_parameters RIGHT_PAREN
 function_call_header_no_parameters := function_call_header VOID | function_call_header
-function_call_header_with_parameters := function_call_header assignment_expression | function_call_header_with_parameters COMMA assignment_expression
+function_call_header_with_parameters := function_call_header assignment_expression (COMMA assignment_expression)*
 function_call_header := function_identifier LEFT_PAREN
 
 function_identifier := type_specifier | postfix_expression
@@ -258,7 +258,7 @@ assignment_expression := conditional_expression | unary_expression assignment_op
 
 assignment_operator := EQUAL | MUL_ASSIGN | DIV_ASSIGN | MOD_ASSIGN | ADD_ASSIGN | SUB_ASSIGN | LEFT_ASSIGN | RIGHT_ASSIGN | AND_ASSIGN | XOR_ASSIGN | OR_ASSIGN
 
-expression := assignment_expression | expression COMMA assignment_expression
+expression := (expression COMMA)* assignment_expression
 
 constant_expression := conditional_expression
 
@@ -338,7 +338,7 @@ case_label := CASE expression COLON | DEFAULT COLON
 iteration_statement := WHILE LEFT_PAREN condition RIGHT_PAREN statement_no_new_scope | DO statement WHILE LEFT_PAREN expression RIGHT_PAREN SEMICOLON | FOR LEFT_PAREN for_init_statement for_rest_statement RIGHT_PAREN statement_no_new_scope
 
 for_init_statement := expression_statement | declaration_statement
-conditionopt := epsilon | condition 
+conditionopt := condition?
 for_rest_statement := conditionopt SEMICOLON | conditionopt SEMICOLON expression
 jump_statement := CONTINUE SEMICOLON | BREAK SEMICOLON | RETURN SEMICOLON | RETURN expression SEMICOLON | DISCARD SEMICOLON
 
