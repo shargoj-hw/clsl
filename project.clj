@@ -11,4 +11,5 @@
                  [instaparse "1.2.16"]
                  [org.clojure/core.match "0.2.1"]]
   :repositories [["sonatype" 
-                  "https://oss.sonatype.org/content/repositories/snapshots/"]])
+                  "https://oss.sonatype.org/content/repositories/snapshots/"]]
+  :resource-paths ["shaders" "grammars"])

@@ -6,10 +6,10 @@
 
 (def str->raw
   (insta/parser
-   (slurp "/Users/jim/src/clsl/src/clsl/glsl.bnf")
+   (slurp "grammars/glsl.bnf")
    :auto-whitespace whitespace))
 
-(def raw-parsed (str->raw (slurp "/Users/jim/src/clsl/src/clsl/shader1.glsl")))
+(def raw-parsed (str->raw (slurp "shaders/shader1.glsl")))
 
 (declare
  raw->ast--decl
