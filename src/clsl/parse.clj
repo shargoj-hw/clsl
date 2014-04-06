@@ -24,7 +24,7 @@
   (match 
    t
    [:S [:translation_unit & r]]
-   {:node-type 'root :defns (map raw->ast--decl r)}))
+   {:node-type :root :defns (vec (map raw->ast--decl r))}))
 
 (defn raw->ast--decl [t]
   (match 
@@ -35,10 +35,11 @@
    (if (empty? rest) (raw->ast--decl decl) "UNSUPPORTED MULTI-DECL")
 
    [:single_declaration type [:IDENTIFIER id]]
-   {:node-type 'decl :id id :type (raw->ast--type type)}
+   {:node-type :decl :id id :type (raw->ast--type type)}
    
    [:single_declaration type [:IDENTIFIER id] [:EQUAL _] initializer]
-   {:node-type 'decl :id id :initialzed-to (raw->ast--initializer initializer)}
+   {:node-type :decl :id id :type (raw->ast--type type)
+    :initialzed-to (raw->ast--initializer initializer)}
 
    [:function_definition
     [:function_prototype
@@ -47,18 +48,18 @@
        [:function_header type [:IDENTIFIER id] _]
        & params]] _]
     body]
-   {:node-type 'fun-def 
+   {:node-type :fun-def 
     :id id
     :type (raw->ast--type type)
-    :params (map raw->ast--decl (filter #(not (= :COMMA (first %))) params))
+    :params (vec (map raw->ast--decl (filter #(not (= :COMMA (first %))) params)))
     :body (raw->ast--stmt body)}
 
    [:parameter_declaration [:parameter_declarator type [:IDENTIFIER id]]]
-   {:node-type 'param-decl :id id :type (raw->ast--type type) }
+   {:node-type :param-decl :id id :type (raw->ast--type type) }
 
    ;; TODO: is this only used for (void) types?
    [:parameter_declaration [:parameter_type_specifier type]]
-   {:node-type 'param-decl :type (raw->ast--type type)}
+   {:node-type :param-decl :type (raw->ast--type type)}
 
    :else (str "UNSUPPORTED DECL" " " t)))
 
@@ -71,9 +72,9 @@
    [:declaration_statement d] (raw->ast--decl d)
 
    [:expression_statement [:SEMICOLON _]] 
-   {:node-type 'empty-expression}
+   {:node-type :empty-expression}
    [:expression_statement expr _] 
-   {:node-type 'expression-stmt :expr (raw->ast--expr expr)}
+   {:node-type :expression-stmt :expr (raw->ast--expr expr)}
 
    [:selection_statement & r] "selection_statement"
    [:switch_statement & r] "switch_statement"
@@ -82,16 +83,16 @@
    [:jump_statement & r] "jump_statement"
 
    [[:LEFT_BRACE _] [:RIGHT_BRACE _]]
-   {:node-type 'empty-stmt}
+   {:node-type :empty-stmt}
    
    [[:LEFT_BRACE _] [:statement_list & stmts] [:RIGHT_BRACE _]]
-   {:node-type 'compound-stmt :stmts (map raw->ast--stmt stmts)}
+   {:node-type :compound-stmt :stmts (vec (map raw->ast--stmt stmts))}
 
    [:compound_statement_no_new_scope _ [:statement_list & body] _]
-   {:node-type 'compound-stmt :body (map raw->ast--stmt body)}
+   {:node-type :compound-stmt :stmts (vec (map raw->ast--stmt body))}
 
    [[:WHILE _] _ [:condition condition] _ body]
-   {:node-type 'while-loop 
+   {:node-type :while-loop 
     :condition (raw->ast--expr condition)
     :body (raw->ast--stmt body)}
 
@@ -101,7 +102,7 @@
     [:for_rest_statement cond _]
     _
     [:statement_no_new_scope body]]
-   {:node-type 'for-loop
+   {:node-type :for-loop
     :initializer "DO SOMETHING WITH S-OR-D"
     :condition (raw->ast--expr cond)
     :body (raw->ast--stmt body)}
@@ -112,7 +113,7 @@
     [:for_rest_statement cond _ update]
     _
     [:statement_no_new_scope body]]
-   {:node-type 'for-loop
+   {:node-type :for-loop
     :initializer "DO SOMETHING WITH S-OR-D"
     :condition (raw->ast--expr cond)
     :body (raw->ast--stmt body)}
@@ -124,66 +125,66 @@
    t
 
    [:expression & r] 
-   {:node-type 'expression-list :expressions (map raw->ast--expr r)}
+   {:node-type :expression-list :expressions (vec (map raw->ast--expr r))}
 
    [:assignment_expression conditional]
    (raw->ast--expr conditional)
 
    [:assignment_expression unary_expression [:assignment_operator oper] expr]
-   {:node-type 'assignment 
+   {:node-type :assignment 
     :oper (assn-oper-type oper)
     :to (raw->ast--expr unary_expression)
     :value (raw->ast--expr expr)}
 
    [:conditional_expression cond] (raw->ast--expr cond)
    [:conditional_expression cond _ then _ else] 
-   {:node-type 'ite :cond (raw->ast--expr cond) 
+   {:node-type :ite :cond (raw->ast--expr cond) 
     :then (raw->ast--expr then)
     :else (raw->ast--expr else)}
 
-   [:conditionopt] 'void
+   [:conditionopt] {:node-type :void}
    [:conditionopt condition] (raw->ast--expr condition)
    
    [:condition expr] (raw->ast--expr expr)
    [:condition type [:IDENTIFIER id] _ initializer]
-   {:node-type 'condition :type (raw->ast--type type) :id id
+   {:node-type :condition :type (raw->ast--type type) :id id
     :initialized-to (raw->ast--initializer initializer)}
 
    ;;;; Logic Operations
 
    [:and_expression expr] (raw->ast--expr expr)
    [:and_expression l_expr [:AMPERSAND _] r_expr] 
-   {:node-type 'and
+   {:node-type :bin-op :oper '&
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:exclusive_or_expression expr] (raw->ast--expr expr)
    [:exclusive_or_expression l_expr [:CARET _] r_expr] 
-   {:node-type 'exclusive_or
+   {:node-type :bin-op :oper '^
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:inclusive_or_expression expr] (raw->ast--expr expr)
    [:inclusive_or_expression l_expr [:VERTICAL_BAR _] r_expr] 
-   {:node-type 'inclusive_or
+   {:node-type :bin-op :oper '|
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:logical_and_expression expr] (raw->ast--expr expr)
    [:logical_and_expression l_expr [:AND_OP _] r_expr] 
-   {:node-type 'logical_and
+   {:node-type :bin-op :oper '&
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:logical_xor_expression expr] (raw->ast--expr expr)
    [:logical_xor_expression l_expr [:XOR_OP _] r_expr] 
-   {:node-type 'logical_xor
+   {:node-type :bin-op :oper 'log-xor
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:logical_or_expression expr] (raw->ast--expr expr)
    [:logical_or_expression l_expr [:OR_OP _] r_expr] 
-   {:node-type 'logical_or
+   {:node-type :bin-op :oper '||
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
@@ -191,25 +192,25 @@
 
    [:multiplicative_expression expr] (raw->ast--expr expr)
    [:multiplicative_expression l_expr oper r_expr] 
-   {:node-type (oper->node-type oper) 
+   {:node-type :bin-op :oper (oper->node-type oper)
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:additive_expression expr] (raw->ast--expr expr)
    [:additive_expression l_expr oper r_expr] 
-   {:node-type (oper->node-type oper) 
+   {:node-type :bin-op :oper (oper->node-type oper) 
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:shift_expression expr] (raw->ast--expr expr)
    [:shift_expression l_expr oper r_expr] 
-   {:node-type (oper->node-type oper) 
+   {:node-type :bin-op :oper (oper->node-type oper) 
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
    [:relational_expression expr] (raw->ast--expr expr)
    [:relational_expression l_expr oper r_expr] 
-   {:node-type (oper->node-type oper) 
+   {:node-type :bin-op :oper (oper->node-type oper) 
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
@@ -217,7 +218,7 @@
 
    [:equality_expression e] (raw->ast--expr e)
    [:equality_expression l_expr oper r_expr]
-   {:node-type (oper->node-type oper) 
+   {:node-type :bin-op :oper (oper->node-type oper) 
     :left (raw->ast--expr l_expr)
     :right (raw->ast--expr r_expr)}
 
@@ -225,26 +226,26 @@
    ;; ;; TODO: replace :side with something more concrete
    [:unary_expression expr] (raw->ast--expr expr)
    [:unary_expression oper expr] 
-   {:node-type (oper->node-type oper) 
+   {:node-type :unary-op :oper (oper->node-type oper) 
     :side 'left
     :sub-expr (raw->ast--expr expr)}
 
    [:postfix_expression expr] (raw->ast--expr expr)
    [:postfix_expression postfix_expression _ expr _] 
-   {:node-type 'array-index :index (raw->ast--expr expr)}
+   {:node-type :array-index :expr (raw->ast--expr postfix_expression) :index (raw->ast--expr expr)}
    [:postfix_expression [:function_call r]] (raw->ast--expr r)   
    [:postfix_expression
     expr
     [:DOT _]
     [:FIELD_SELECTION [:IDENTIFIER id]]] 
-   {:node-type 'field-get :expr (raw->ast--expr expr) :field id}
+   {:node-type :field-get :expr (raw->ast--expr expr) :field id}
    [:postfix_expression expr oper]
-   {:node-type (oper->node-type oper)
-    :side 'left
+   {:node-type :unary-op :oper (oper->node-type oper)
+    :side 'right
     :sub-expr (raw->ast--expr expr)}
 
    [:primary_expression [:variable_identifier [:IDENTIFIER v]]]
-   {:node-type 'identifier :id v}
+   {:node-type :identifier :id v}
    [:primary_expression [:INTCONSTANT [_ v]]] v
    [:primary_expression [:UINTCONSTANT [_ v]]] v
    [:primary_expression [:FLOATCONSTANT v]] v
@@ -259,16 +260,16 @@
    [:function_call_generic fc _] (raw->ast--expr fc)
 
    [:function_call_header_no_parameters fch _] 
-   {:node-type 'fun-call :func (raw->ast--expr fch)}
+   {:node-type :fun-call :func (raw->ast--expr fch)}
    [:function_call_header_no_parameters fch] 
-   {:node-type 'fun-call :func (raw->ast--expr fch)}
+   {:node-type :fun-call :func (raw->ast--expr fch)}
 
    [:function_call_header_with_parameters fch & r]
-   {:node-type 'fun-call :func (raw->ast--expr fch) 
+   {:node-type :fun-call :func (raw->ast--expr fch) 
     :args
     (let [actual-args
           (filter (fn [a] (match a [:COMMA _] false :else true)) r)]
-      (map raw->ast--expr actual-args))}
+      (vec (map raw->ast--expr actual-args)))}
 
    [:function_call_header function_identifier _]
    (match 
@@ -289,20 +290,20 @@
    [:fully_specified_type type] (raw->ast--type type)
 
    [:type_specifier nonarr arr]
-   {:node-type 'type-decl
+   {:node-type :type-decl
     :type (raw->ast--type nonarr)
     ;; TODO: fix this to be better somehow?
     :array-spec (raw->ast arr)}
 
    [:type_specifier nonarr]
-   {:node-type 'type-decl 
+   {:node-type :type-decl 
     :type (raw->ast--type nonarr)}
 
    [:type_specifier_nonarray [:TYPE_NAME [:IDENTIFIER id]]] 
-   {:node-type 'type :name id}
+   {:node-type :type :name id}
 
    [:type_qualifier & r] 
-   {:qualifiers (map (fn [f] (name (match f [_ [_ [ty _]]] ty))) r)}
+   {:qualifiers (vec (map (fn [f] (name (match f [_ [_ [ty _]]] ty))) r))}
    
    :else (str "UNSUPPORTED TYPE" " " t)))
 
@@ -318,21 +319,21 @@
 (defn oper->node-type [oper]
   (match 
    oper
-   [:STAR _] '*
-   [:SLASH _] '/
-   [:PERCENT _] '%
-   [:PLUS _] '+
-   [:DASH _] '-
-   [:LEFT_OP _] '<<
-   [:RIGHT_OP _] '>>
-   [:LEFT_ANGLE _] '<
-   [:RIGHT_ANGLE _] '>
-   [:LE_OP _] '<=
-   [:GE_OP _] '>=
-   [:EQ_OP _] '==
-   [:NE_OP _] '!=
-   [:DEC_OP _] '--
-   [:INC_OP _] '++
+   [:STAR _] :*
+   [:SLASH _] :div
+   [:PERCENT _] :%
+   [:PLUS _] :+
+   [:DASH _] :-
+   [:LEFT_OP _] :<<
+   [:RIGHT_OP _] :>>
+   [:LEFT_ANGLE _] :<
+   [:RIGHT_ANGLE _] :>
+   [:LE_OP _] :<=
+   [:GE_OP _] :>=
+   [:EQ_OP _] :==
+   [:NE_OP _] :!=
+   [:DEC_OP _] :--
+   [:INC_OP _] :++
    :else (throw (str "Unrecognized operator" oper))))
 
 (defn assn-oper-type [assn]
@@ -348,6 +349,6 @@
    [:RIGHT_ASSIGN _] :>>=
    [:AND_ASSIGN _] :&=
    [:XOR_ASSIGN _] :xor=
-   [:OR_ASSIGN _]) :|=)
+   [:OR_ASSIGN _] :|=))
 
 (raw->ast raw-parsed)
