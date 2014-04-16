@@ -8,7 +8,8 @@
                  [com.badlogicgames.gdx/gdx-backend-lwjgl "0.9.9"]
                  [com.badlogicgames.gdx/gdx-platform "0.9.9" 
                   :classifier "natives-desktop"]
-                 [instaparse "1.2.16"]
+                 ;; [instaparse "1.2.16"]
+                 [instaparse "1.3.1"]
                  [org.clojure/core.match "0.2.1"]]
   :repositories [["sonatype" 
                   "https://oss.sonatype.org/content/repositories/snapshots/"]]

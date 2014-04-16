@@ -7,9 +7,9 @@
 (def str->raw
   (insta/parser
    (slurp "grammars/glsl.bnf")
-   :auto-whitespace whitespace))
-
-(def raw-parsed (str->raw (slurp "shaders/shader1.glsl")))
+   :auto-whitespace whitespace
+   :partial true
+   :total true))
 
 (declare
  raw->ast--decl
@@ -39,7 +39,7 @@
    
    [:single_declaration type [:IDENTIFIER id] [:EQUAL _] initializer]
    {:node-type :decl :id id :type (raw->ast--type type)
-    :initialzed-to (raw->ast--initializer initializer)}
+    :initialized-to (raw->ast--initializer initializer)}
 
    [:function_definition
     [:function_prototype
@@ -80,7 +80,17 @@
    [:switch_statement & r] "switch_statement"
    [:case_label & r] "case_label"
    [:iteration_statement & r] (raw->ast--stmt r)
-   [:jump_statement & r] "jump_statement"
+
+   [:jump_statement [:CONTINUE _] _]
+   {:node-type :jump :kind :continue}
+   [:jump_statement [:BREAK _] _]
+   {:node-type :jump :kind :break}
+   [:jump_statement [:RETURN _] _]
+   {:node-type :jump :kind :return}
+   [:jump_statement [:RETURN _] expr _]
+   {:node-type :jump :kind :return :expr (raw->ast--expr expr)}
+   [:jump_statement [:DISCARD _] _]
+   {:node-type :jump :kind :discard}
 
    [[:LEFT_BRACE _] [:RIGHT_BRACE _]]
    {:node-type :empty-stmt}
@@ -103,7 +113,11 @@
     _
     [:statement_no_new_scope body]]
    {:node-type :for-loop
-    :initializer "DO SOMETHING WITH S-OR-D"
+    :initializer 
+    (match 
+     s-or-d
+     [:expression-stmt e] (raw->ast--expr e)
+     [:declaration_statement d] (raw->ast--decl d))
     :condition (raw->ast--expr cond)
     :body (raw->ast--stmt body)}
 
@@ -114,8 +128,13 @@
     _
     [:statement_no_new_scope body]]
    {:node-type :for-loop
-    :initializer "DO SOMETHING WITH S-OR-D"
+    :initializer 
+    (match 
+     s-or-d
+     [:expression-stmt e] (raw->ast--expr e)
+     [:declaration_statement d] (raw->ast--decl d))
     :condition (raw->ast--expr cond)
+    :update (raw->ast--expr update)
     :body (raw->ast--stmt body)}
    
    :else (str "UNSUPPORTED STMT" " " t)))
@@ -227,7 +246,7 @@
    [:unary_expression expr] (raw->ast--expr expr)
    [:unary_expression oper expr] 
    {:node-type :unary-op :oper (oper->node-type oper) 
-    :side 'left
+    :side :left
     :sub-expr (raw->ast--expr expr)}
 
    [:postfix_expression expr] (raw->ast--expr expr)
@@ -241,16 +260,21 @@
    {:node-type :field-get :expr (raw->ast--expr expr) :field id}
    [:postfix_expression expr oper]
    {:node-type :unary-op :oper (oper->node-type oper)
-    :side 'right
+    :side :right
     :sub-expr (raw->ast--expr expr)}
 
    [:primary_expression [:variable_identifier [:IDENTIFIER v]]]
    {:node-type :identifier :id v}
-   [:primary_expression [:INTCONSTANT [_ v]]] v
-   [:primary_expression [:UINTCONSTANT [_ v]]] v
-   [:primary_expression [:FLOATCONSTANT v]] v
-   [:primary_expression [:BOOLCONSTANT v]] v
-   [:primary_expression [:DOUBLECONSTANT v]] v
+
+   [:primary_expression c] (raw->ast--expr c)
+
+   [:INTCONSTANT [_ v]] v
+   [:INTCONSTANT v] v
+   [:UINTCONSTANT [_ v]] v
+   [:FLOATCONSTANT v] v
+   [:BOOLCONSTANT v] v
+   [:DOUBLECONSTANT v] v
+
    [:primary_expression _ expr _] (raw->ast--expr expr)
 
    ;;;; Function Call Expressions
@@ -351,4 +375,7 @@
    [:XOR_ASSIGN _] :xor=
    [:OR_ASSIGN _] :|=))
 
+(def raw-parsed (str->raw (slurp "shaders/shader1.glsl")))
 (raw->ast raw-parsed)
+
+(defn parse [s] (-> s str->raw raw->ast))
