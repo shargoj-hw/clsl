@@ -7,9 +7,9 @@
      (def ~name ~(symbol (str "->" name "-rec")))))
 
 (def-ast-type root [defns])
-(def-ast-type decl [id maybe-initialized-to])
-(def-ast-type fundef [id type params body])
-(def-ast-type param-decl [id type])
+(def-ast-type decl [id type maybe-initialized-to])
+(def-ast-type fun-def [id type params body])
+(def-ast-type param-decl [type maybe-id])
 (def-ast-type empty-expression [])
 (def-ast-type expression-stmt [expr])
 (def-ast-type jump [kind maybe-value])
@@ -30,4 +30,4 @@
 (def-ast-type identifier [id])
 (def-ast-type fun-call [func maybe-args])
 (def-ast-type type-decl [type maybe-array-spec])
-(def-ast-type type [name maybe-qualifiers])
+(def-ast-type full-type [name maybe-qualifiers])
